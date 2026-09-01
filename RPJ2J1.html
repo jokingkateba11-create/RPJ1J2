@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Otaku Arena RP - Multijoueur P2P</title>
+  <!-- PeerJS pour la connexion P2P direct entre téléphones -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Teko:wght@500;700&family=Rajdhani:wght@600;700&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background: #08060c;
+      background-image: 
+        radial-gradient(circle, rgba(255, 204, 0, 0.05) 2px, transparent 2.5px),
+        repeating-radial-gradient(circle at 50% 50%, rgba(255, 77, 0, 0.08) 0, rgba(255, 77, 0, 0.08) 2px, transparent 4px, transparent 20px);
+      background-size: 24px 24px, 100% 100%;
+      color: #ffffff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+      overflow-x: hidden;
+    }
+
+    h1 {
+      font-family: 'Bangers', cursive;
+      font-size: 2.2rem;
+      letter-spacing: 3px;
+      color: #ffcc00;
+      text-shadow: 3px 3px 0px #ff3300, 5px 5px 0px #000;
+      text-align: center;
+      margin-bottom: 10px;
+      transform: skew(-5deg);
+    }
+
+    .masque { display: none !important; }
+
+    /* MENU MULTIJOUEUR P2P */
+    .panneau-multijoueur {
+      background: rgba(18, 14, 28, 0.95);
+      border: 3px solid #00e5ff;
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
+      padding: 15px;
+      margin-bottom: 15px;
+      width: 100%;
+      max-width: 950px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      text-align: center;
+    }
+
+    .panneau-multijoueur h3 {
+      font-family: 'Bangers', cursive;
+      color: #00e5ff;
+      font-size: 1.5rem;
+      letter-spacing: 1px;
+    }
+
+    .box-connexion {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .btn-multi {
+      background: #00e5ff;
+      color: #000;
+      border: 2px solid #000;
+      padding: 8px 16px;
+      font-family: 'Bangers', cursive;
+      font-size: 1.1rem;
+      cursor: pointer;
+      letter-spacing: 1px;
+      touch-action: manipulation;
+    }
+
+    .btn-multi:hover { background: #fff; }
+
+    .code-session {
+      font-family: 'Teko', sans-serif;
+      font-size: 1.6rem;
+      color: #ffcc00;
+      letter-spacing: 2px;
+      background: #000;
+      padding: 2px 10px;
+      border: 1px solid #ffcc00;
+    }
+
+    /* CREATION DES PERSONNAGES */
+    .conteneur-creation {
+      display: flex;
+      gap: 20px;
+      width: 100%;
+      max-width: 950px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .carte-creation {
+      flex: 1;
+      min-width: 290px;
+      background: rgba(18, 14, 28, 0.95);
+      border: 3px solid #000;
+      box-shadow: 6px 6px 0px #ff3300;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .carte-creation h2 {
+      font-family: 'Bangers', cursive;
+      font-size: 1.6rem;
+      color: #ffcc00;
+      border-bottom: 2px dashed #ff3300;
+      padding-bottom: 5px;
+    }
+
+    .groupe-input-rp { display: flex; flex-direction: column; gap: 4px; }
+    .groupe-input-rp label { font-family: 'Teko', sans-serif; font-size: 15px; color: #ff9900; }
+
+    input, textarea {
+      background-color: #0d0a14;
+      border: 2px solid #3d3152;
+      padding: 8px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      font-family: 'Rajdhani', sans-serif;
+      width: 100%;
+    }
+
+    textarea { resize: vertical; height: 45px; }
+
+    .btn-lancer {
+      margin-top: 15px;
+      padding: 12px 25px;
+      font-family: 'Bangers', cursive;
+      font-size: 1.4rem;
+      background: #ffcc00;
+      border: 3px solid #000;
+      color: #000;
+      cursor: pointer;
+      box-shadow: 5px 5px 0px #ff3300;
+      width: 100%;
+      max-width: 400px;
+      touch-action: manipulation;
+    }
+
+    /* ARENE DE COMBAT */
+    .arene-conteneur { display: flex; flex-direction: column; gap: 15px; width: 100%; max-width: 1100px; }
+    .plateau-joueurs { display: flex; gap: 15px; width: 100%; flex-wrap: wrap; }
+
+    .joueur-panneau {
+      flex: 1;
+      min-width: 290px;
+      background: rgba(18, 14, 28, 0.95);
+      border: 3px solid #000;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .joueur-panneau.inactif { opacity: 0.3; filter: grayscale(100%); pointer-events: none; }
+    .j1-couleur { box-shadow: -4px 4px 0px #00e5ff; border-top: 5px solid #00e5ff; }
+    .j2-couleur { box-shadow: 4px 4px 0px #ff0055; border-top: 5px solid #ff0055; }
+
+    .joueur-panneau h3 { font-family: 'Bangers', cursive; font-size: 1.6rem; }
+
+    .stat-group { display: flex; flex-direction: column; gap: 2px; }
+    .stat-group label { font-family: 'Teko', sans-serif; font-size: 15px; color: #d0c8e8; }
+    .barre-fond { background-color: #08060c; height: 16px; border: 2px solid #000; overflow: hidden; }
+    .barre { height: 100%; transition: width 0.3s ease; }
+    .pv { background: linear-gradient(90deg, #ff0055, #ff5500); }
+    .energie { background: linear-gradient(90deg, #00d2ff, #0055ff); }
+    .endurance { background: linear-gradient(90deg, #00ff87, #0bda51); }
+
+    .actions-grille { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    button.btn-action {
+      background: #191428;
+      border: 2px solid #000;
+      color: #fff;
+      padding: 12px 6px;
+      font-family: 'Teko', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 3px 3px 0px #000;
+      touch-action: manipulation;
+    }
+
+    button.btn-action:hover:not(:disabled) { background: #ffcc00; color: #000; }
+    button.btn-action:disabled { opacity: 0.3; cursor: not-allowed !important; }
+
+    .btn-atk-main { background: #ff3300 !important; color: #fff !important; grid-column: span 2; font-size: 18px !important; }
+
+    .panneau-reaction { background: rgba(255, 51, 0, 0.15); border: 2px solid #ff3300; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .panneau-reaction p { font-family: 'Teko', sans-serif; font-size: 16px; color: #ffcc00; }
+
+    .journal-cadre { background: rgba(18, 14, 28, 0.95); border: 3px solid #000; padding: 12px; width: 100%; }
+    .journal-titre { font-family: 'Bangers', cursive; font-size: 1.2rem; color: #ffcc00; }
+    .journal-box { height: 130px; overflow-y: auto; font-size: 14px; display: flex; flex-direction: column; gap: 6px; }
+    .journal-box p { padding: 4px 8px; background: rgba(0, 0, 0, 0.4); }
+
+    .msg-j1 { border-left: 4px solid #00e5ff; color: #e0f8ff; }
+    .msg-j2 { border-left: 4px solid #ff0055; color: #ffe0f0; }
+    .msg-sys { border-left: 4px solid #ffcc00; color: #ffcc00; }
+
+    /* OVERLAY VICTOIRE */
+    #ecran-victoire { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10000; }
+    .victoire-conteneur { background: #0d0a14; border: 4px solid #ffcc00; padding: 25px; text-align: center; max-width: 450px; width: 90%; }
+    .victoire-nom { font-family: 'Bangers', cursive; font-size: 2.5rem; color: #ffcc00; margin: 15px 0; }
+
+    @media (max-width: 600px) {
+      .carte-creation, .joueur-panneau { min-width: 100%; }
+      .actions-grille { grid-template-columns: 1fr; }
+      .btn-atk-main { grid-column: span 1 !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Otaku Arena RP - P2P Multi</h1>
+
+  <!-- MULTIJOUEUR PEERJS -->
+  <div class="panneau-multijoueur">
+    <h3>🔗 Connexion Directe (Wi-Fi / Point d'accès local)</h3>
+    <div id="statut-p2p" style="color: #00ff87; font-weight: bold;">Initialisation du réseau...</div>
+    
+    <div class="box-connexion">
+      <button class="btn-multi" onclick="creerPartie()">1. Créer une Partie</button>
+      <div style="display: flex; gap: 5px;">
+        <input type="text" id="input-code-joindre" placeholder="Code de l'hôte..." style="width: 140px; text-transform: uppercase;">
+        <button class="btn-multi" onclick="rejoindrePartie()">2. Rejoindre</button>
+      </div>
+    </div>
+    <div id="affichage-code" class="masque">Mon Code : <span id="mon-code-id" class="code-session">----</span></div>
+  </div>
+
+  <!-- CREATION DU PERSONNAGE -->
+  <div id="ecran-creation" style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+    <div class="conteneur-creation">
+      <div class="carte-creation">
+        <h2 id="titre-mon-perso">Mon Personnage</h2>
+        <input type="text" id="mon-nom" placeholder="Votre nom de combattant">
+        
+        <div class="groupe-input-rp">
+          <label>Attaque 1 (-5 PV adv, -10 Énergie)</label>
+          <input type="text" id="mon-atk1-nom" placeholder="Nom de l'attaque 1">
+          <textarea id="mon-atk1-txt" placeholder="Description RP..."></textarea>
+        </div>
+
+        <div class="groupe-input-rp">
+          <label>Attaque 2 (-10 PV adv, -20 Énergie)</label>
+          <input type="text" id="mon-atk2-nom" placeholder="Nom de l'attaque 2">
+          <textarea id="mon-atk2-txt" placeholder="Description RP..."></textarea>
+        </div>
+
+        <div class="groupe-input-rp">
+          <label>Attaque Puissante (-20 PV adv, IMPARABLE)</label>
+          <input type="text" id="mon-atkP-nom" placeholder="Nom de l'attaque ultime">
+          <textarea id="mon-atkP-txt" placeholder="Description RP..."></textarea>
+        </div>
+      </div>
+    </div>
+    <button id="btn-valider-perso" class="btn-lancer" onclick="validerMonProfil()">Prêt pour le combat !</button>
+  </div>
+
+  <!-- ARENE -->
+  <div id="ecran-arene" class="arene-conteneur masque">
+    <div class="plateau-joueurs">
+      <!-- J1 -->
+      <div id="j1-panneau" class="joueur-panneau j1-couleur">
+        <h3 id="j1-titre" style="color:#00e5ff;">Joueur 1</h3>
+        <div class="stat-group"><label>PV : <span id="j1-val-pv">100</span>/100</label><div class="barre-fond"><div id="j1-barre-pv" class="barre pv" style="width: 100%;"></div></div></div>
+        <div class="stat-group"><label>Énergie : <span id="j1-val-energie">50</span>/50</label><div class="barre-fond"><div id="j1-barre-energie" class="barre energie" style="width: 100%;"></div></div></div>
+        <div class="stat-group"><label>Endurance : <span id="j1-val-endurance">50</span>/50</label><div class="barre-fond"><div id="j1-barre-endurance" class="barre endurance" style="width: 100%;"></div></div></div>
+
+        <div id="j1-menu-main" class="actions-grille">
+          <button class="btn-action btn-atk-main" onclick="ouvrirAttaques(1)">Attaquer</button>
+          <button id="j1-btn-recharger" class="btn-action" onclick="actionRecharger(1)" style="grid-column: span 2;">Recharger (-5 PV, +30 Énergie)</button>
+        </div>
+        <div id="j1-menu-atk" class="actions-grille masque">
+          <button id="j1-btn-atk1" class="btn-action" onclick="preparerAttaque(1, 1)"></button>
+          <button id="j1-btn-atk2" class="btn-action" onclick="preparerAttaque(1, 2)"></button>
+          <button id="j1-btn-atkP" class="btn-action" style="grid-column: span 2;" onclick="preparerAttaque(1, 3)"></button>
+          <button class="btn-action" style="grid-column: span 2; background:#3d3152;" onclick="fermerAttaques(1)">Retour</button>
+        </div>
+        <div id="j1-menu-react" class="panneau-reaction masque">
+          <p id="j1-txt-react">Attaque en approche !</p>
+          <div class="actions-grille">
+            <button class="btn-action" style="color:#ff0055;" onclick="reagirAttaque(1, 'subir')">Subir</button>
+            <button id="j1-btn-def" class="btn-action" style="color:#00d2ff;" onclick="reagirAttaque(1, 'defendre')">Parer (-2 PV, -5 Endu)</button>
+            <button class="btn-action" style="color:#00ff87; grid-column: span 2;" onclick="reagirAttaque(1, 'esquiver')">Esquiver (-10 Endu)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- J2 -->
+      <div id="j2-panneau" class="joueur-panneau j2-couleur">
+        <h3 id="j2-titre" style="color:#ff0055;">Joueur 2</h3>
+        <div class="stat-group"><label>PV : <span id="j2-val-pv">100</span>/100</label><div class="barre-fond"><div id="j2-barre-pv" class="barre pv" style="width: 100%;"></div></div></div>
+        <div class="stat-group"><label>Énergie : <span id="j2-val-energie">50</span>/50</label><div class="barre-fond"><div id="j2-barre-energie" class="barre energie" style="width: 100%;"></div></div></div>
+        <div class="stat-group"><label>Endurance : <span id="j2-val-endurance">50</span>/50</label><div class="barre-fond"><div id="j2-barre-endurance" class="barre endurance" style="width: 100%;"></div></div></div>
+
+        <div id="j2-menu-main" class="actions-grille">
+          <button class="btn-action btn-atk-main" onclick="ouvrirAttaques(2)">Attaquer</button>
+          <button id="j2-btn-recharger" class="btn-action" onclick="actionRecharger(2)" style="grid-column: span 2;">Recharger (-5 PV, +30 Énergie)</button>
+        </div>
+        <div id="j2-menu-atk" class="actions-grille masque">
+          <button id="j2-btn-atk1" class="btn-action" onclick="preparerAttaque(2, 1)"></button>
+          <button id="j2-btn-atk2" class="btn-action" onclick="preparerAttaque(2, 2)"></button>
+          <button id="j2-btn-atkP" class="btn-action" style="grid-column: span 2;" onclick="preparerAttaque(2, 3)"></button>
+          <button class="btn-action" style="grid-column: span 2; background:#3d3152;" onclick="fermerAttaques(2)">Retour</button>
+        </div>
+        <div id="j2-menu-react" class="panneau-reaction masque">
+          <p id="j2-txt-react">Attaque en approche !</p>
+          <div class="actions-grille">
+            <button class="btn-action" style="color:#ff0055;" onclick="reagirAttaque(2, 'subir')">Subir</button>
+            <button id="j2-btn-def" class="btn-action" style="color:#00d2ff;" onclick="reagirAttaque(2, 'defendre')">Parer (-2 PV, -5 Endu)</button>
+            <button class="btn-action" style="color:#00ff87; grid-column: span 2;" onclick="reagirAttaque(2, 'esquiver')">Esquiver (-10 Endu)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="journal-cadre">
+      <div class="journal-titre">Journal de Combat RP</div>
+      <div id="journal" class="journal-box"></div>
+    </div>
+  </div>
+
+  <!-- VICTOIRE -->
+  <div id="ecran-victoire" class="masque">
+    <div class="victoire-conteneur">
+      <h2 style="font-family:'Bangers'; color:#fff;">🏆 K.O. FINAL 🏆</h2>
+      <div id="victoire-nom-affiche" class="victoire-nom">JOUEUR 1</div>
+      <button class="btn-lancer" onclick="location.reload()">Rejouer</button>
+    </div>
+  </div>
+
+  <script>
+    let peer = null;
+    let conn = null;
+    let monNumeroJoueur = 0; // 1 (Hôte) ou 2 (Invité)
+    
+    let j1 = { num: 1, nom: "", atks: [], pv: 100, energie: 50, endurance: 50, pret: false };
+    let j2 = { num: 2, nom: "", atks: [], pv: 100, energie: 50, endurance: 50, pret: false };
+    
+    let tourActuel = 1;
+    let attaqueEnAttente = null;
+
+    // GENERATION CODE COURT
+    function genererCodeCourt() {
+      return Math.floor(1000 + Math.random() * 9000).toString();
+    }
+
+    // INITIALISATION PEERJS
+    function initPeer(idCustom = null) {
+      peer = idCustom ? new Peer(idCustom) : new Peer();
+
+      peer.on('open', (id) => {
+        document.getElementById("statut-p2p").innerText = "Réseau P2P prêt !";
+      });
+
+      peer.on('connection', (c) => {
+        conn = c;
+        monNumeroJoueur = 1;
+        configurerEvenementsConnexion();
+        document.getElementById("statut-p2p").innerText = "⚡ Joueur 2 connecté ! Créez vos fiches.";
+      });
+
+      peer.on('error', (err) => {
+        document.getElementById("statut-p2p").innerText = "Erreur de connexion : " + err.type;
+      });
+    }
+
+    initPeer();
+
+    function creerPartie() {
+      let codeCourt = genererCodeCourt();
+      if(peer) peer.destroy();
+      
+      initPeer('otaku-' + codeCourt);
+      document.getElementById("affichage-code").classList.remove("masque");
+      document.getElementById("mon-code-id").innerText = codeCourt;
+      document.getElementById("statut-p2p").innerText = "En attente du Joueur 2...";
+      monNumeroJoueur = 1;
+    }
+
+    function rejoindrePartie() {
+      let code = document.getElementById("input-code-joindre").value.trim();
+      if(!code) return alert("Entrez le code à 4 chiffres !");
+      
+      monNumeroJoueur = 2;
+      conn = peer.connect('otaku-' + code);
+      configurerEvenementsConnexion();
+    }
+
+    function configurerEvenementsConnexion() {
+      conn.on('open', () => {
+        document.getElementById("statut-p2p").innerText = "⚡ Connecté au Joueur 1 !";
+      });
+
+      conn.on('data', (data) => {
+        traiterDonneesReseau(data);
+      });
+    }
+
+    function envoyerData(action, payload) {
+      if(conn && conn.open) {
+        conn.send({ action: action, payload: payload });
+      }
+    }
+
+    // GESTION DU PROFIL
+    function validerMonProfil() {
+      let nom = document.getElementById("mon-nom").value.trim() || `Joueur ${monNumeroJoueur}`;
+      let atks = [
+        { nom: document.getElementById("mon-atk1-nom").value.trim() || "Attaque 1", desc: document.getElementById("mon-atk1-txt").value.trim() || "lance un coup rapide." },
+        { nom: document.getElementById("mon-atk2-nom").value.trim() || "Attaque 2", desc: document.getElementById("mon-atk2-txt").value.trim() || "exécute sa technique." },
+        { nom: document.getElementById("mon-atkP-nom").value.trim() || "Ulti", desc: document.getElementById("mon-atkP-txt").value.trim() || "déchaîne son pouvoir ultime !" }
+      ];
+
+      let monObj = monNumeroJoueur === 1 ? j1 : j2;
+      monObj.nom = nom;
+      monObj.atks = atks;
+      monObj.pret = true;
+
+      document.getElementById("btn-valider-perso").disabled = true;
+      document.getElementById("btn-valider-perso").innerText = "En attente de l'autre joueur...";
+
+      envoyerData('PROFIL_PRET', { num: monNumeroJoueur, nom: nom, atks: atks });
+
+      verifierLancementCombat();
+    }
+
+    function traiterDonneesReseau(data) {
+      switch(data.action) {
+        case 'PROFIL_PRET':
+          let cible = data.payload.num === 1 ? j1 : j2;
+          cible.nom = data.payload.nom;
+          cible.atks = data.payload.atks;
+          cible.pret = true;
+          verifierLancementCombat();
+          break;
+
+        case 'PREPARER_ATTAQUE':
+          preparerAttaqueLocal(data.payload.attaquantNum, data.payload.indexAtk);
+          break;
+
+        case 'REAGIR_ATTAQUE':
+          reagirAttaqueLocal(data.payload.defenseurNum, data.payload.typeReaction);
+          break;
+
+        case 'RECHARGER':
+          actionRechargerLocal(data.payload.num);
+          break;
+      }
+    }
+
+    function verifierLancementCombat() {
+      if(j1.pret && j2.pret) {
+        document.getElementById("ecran-creation").classList.add("masque");
+        document.getElementById("ecran-arene").classList.remove("masque");
+
+        document.getElementById("j1-titre").innerText = j1.nom;
+        document.getElementById("j1-btn-atk1").innerText = `${j1.atks[0].nom} (-10 En.)`;
+        document.getElementById("j1-btn-atk2").innerText = `${j1.atks[1].nom} (-20 En.)`;
+        document.getElementById("j1-btn-atkP").innerText = `${j1.atks[2].nom} (-25 En.)`;
+
+        document.getElementById("j2-titre").innerText = j2.nom;
+        document.getElementById("j2-btn-atk1").innerText = `${j2.atks[0].nom} (-10 En.)`;
+        document.getElementById("j2-btn-atk2").innerText = `${j2.atks[1].nom} (-20 En.)`;
+        document.getElementById("j2-btn-atkP").innerText = `${j2.atks[2].nom} (-25 En.)`;
+
+        ajouterJournal(`Le combat commence ! Tour de ${j1.nom}.`, "msg-sys");
+        gererTours();
+        majInterface();
+      }
+    }
+
+    // MECANIQUE DE COMBAT
+    function gererTours() {
+      const p1 = document.getElementById("j1-panneau");
+      const p2 = document.getElementById("j2-panneau");
+
+      document.getElementById("j1-menu-react").classList.add("masque");
+      document.getElementById("j2-menu-react").classList.add("masque");
+
+      p1.classList.toggle("inactif", tourActuel !== 1 || monNumeroJoueur !== 1);
+      p2.classList.toggle("inactif", tourActuel !== 2 || monNumeroJoueur !== 2);
+
+      document.getElementById("j1-menu-main").classList.remove("masque");
+      document.getElementById("j2-menu-main").classList.remove("masque");
+
+      majBoutonsAttaques();
+    }
+
+    function majBoutonsAttaques() {
+      let j = tourActuel === 1 ? j1 : j2;
+      let num = tourActuel;
+
+      if(num === monNumeroJoueur) {
+        document.getElementById(`j${num}-btn-atk1`).disabled = (j.energie < 10);
+        document.getElementById(`j${num}-btn-atk2`).disabled = (j.energie < 20);
+        document.getElementById(`j${num}-btn-atkP`).disabled = (j.energie < 25);
+        document.getElementById(`j${num}-btn-recharger`).disabled = (j.energie >= 50);
+      }
+    }
+
+    function preparerAttaque(attaquantNum, indexAtk) {
+      if(attaquantNum !== monNumeroJoueur) return;
+      envoyerData('PREPARER_ATTAQUE', { attaquantNum: attaquantNum, indexAtk: indexAtk });
+      preparerAttaqueLocal(attaquantNum, indexAtk);
+    }
+
+    function preparerAttaqueLocal(attaquantNum, indexAtk) {
+      let attaquant = attaquantNum === 1 ? j1 : j2;
+      let cibleNum = attaquantNum === 1 ? 2 : 1;
+      let cible = attaquantNum === 1 ? j2 : j1;
+
+      let coutEnergie = indexAtk === 1 ? 10 : indexAtk === 2 ? 20 : 25;
+      let degatsBase = indexAtk === 1 ? 5 : indexAtk === 2 ? 10 : 20;
+      let estPuissante = (indexAtk === 3);
+      let atkObj = attaquant.atks[indexAtk - 1];
+
+      attaquant.energie -= coutEnergie;
+      
+      attaqueEnAttente = { attaquantNum, cibleNum, degatsBase, imparable: estPuissante };
+
+      fermerAttaques(attaquantNum);
+      majInterface();
+
+      document.getElementById(`j${attaquantNum}-panneau`).classList.add("inactif");
+      
+      if(cibleNum === monNumeroJoueur) {
+        document.getElementById(`j${cibleNum}-panneau`).classList.remove("inactif");
+        document.getElementById(`j${cibleNum}-menu-main`).classList.add("masque");
+        document.getElementById(`j${cibleNum}-btn-def`).disabled = estPuissante;
+        document.getElementById(`j${cibleNum}-txt-react`).innerText = estPuissante ? 
+          `⚠️ ULTIME IMPARABLE ! ${attaquant.nom} lance [${atkObj.nom}] !` : 
+          `⚔️ ${attaquant.nom} lance [${atkObj.nom}] ! Réagissez :`;
+        document.getElementById(`j${cibleNum}-menu-react`).classList.remove("masque");
+      }
+
+      ajouterJournal(`💥 ${attaquant.nom} : "${atkObj.desc}" (Lance ${atkObj.nom})`, `msg-j${attaquantNum}`);
+    }
+
+    function reagirAttaque(defenseurNum, typeReaction) {
+      if(defenseurNum !== monNumeroJoueur) return;
+      envoyerData('REAGIR_ATTAQUE', { defenseurNum: defenseurNum, typeReaction: typeReaction });
+      reagirAttaqueLocal(defenseurNum, typeReaction);
+    }
+
+    function reagirAttaqueLocal(defenseurNum, typeReaction) {
+      let defenseur = defenseurNum === 1 ? j1 : j2;
+      let degatsFinaux = attaqueEnAttente.degatsBase;
+
+      if (typeReaction === 'subir') {
+        defenseur.pv = Math.max(0, defenseur.pv - degatsFinaux);
+        ajouterJournal(`🎯 ${defenseur.nom} subit le coup (-${degatsFinaux} PV) !`, `msg-j${defenseurNum}`);
+      } else if (typeReaction === 'defendre') {
+        defenseur.pv -= 2;
+        defenseur.endurance -= 5;
+        degatsFinaux = Math.max(1, degatsFinaux - 5);
+        defenseur.pv = Math.max(0, defenseur.pv - degatsFinaux);
+        ajouterJournal(`🛡️ ${defenseur.nom} pare le coup (-2 PV, -5 Endu) ! Dégâts : ${degatsFinaux} PV.`, `msg-j${defenseurNum}`);
+      } else if (typeReaction === 'esquiver') {
+        defenseur.endurance -= 10;
+        ajouterJournal(`💨 ESQUIVE RÉUSSIE ! ${defenseur.nom} évite les dégâts (-10 Endu) !`, `msg-j${defenseurNum}`);
+      }
+
+      attaqueEnAttente = null;
+      majInterface();
+      
+      if (verifierVictoire()) return;
+
+      tourActuel = tourActuel === 1 ? 2 : 1;
+      let nouveauNom = tourActuel === 1 ? j1.nom : j2.nom;
+      ajouterJournal(`🔄 Tour de ${nouveauNom} !`, "msg-sys");
+      gererTours();
+    }
+
+    function actionRecharger(num) {
+      if(num !== monNumeroJoueur) return;
+      envoyerData('RECHARGER', { num: num });
+      actionRechargerLocal(num);
+    }
+
+    function actionRechargerLocal(num) {
+      let j = num === 1 ? j1 : j2;
+      j.pv -= 5;
+      j.energie = Math.min(50, j.energie + 30);
+      ajouterJournal(`⚡ ${j.nom} sacrifie 5 PV et gagne +30 Énergie.`, `msg-j${num}`);
+      majInterface();
+
+      tourActuel = tourActuel === 1 ? 2 : 1;
+      gererTours();
+    }
+
+    function majInterface() {
+      document.getElementById("j1-val-pv").innerText = j1.pv;
+      document.getElementById("j1-barre-pv").style.width = `${j1.pv}%`;
+      document.getElementById("j1-val-energie").innerText = j1.energie;
+      document.getElementById("j1-barre-energie").style.width = `${(j1.energie / 50) * 100}%`;
+      document.getElementById("j1-val-endurance").innerText = j1.endurance;
+      document.getElementById("j1-barre-endurance").style.width = `${(j1.endurance / 50) * 100}%`;
+
+      document.getElementById("j2-val-pv").innerText = j2.pv;
+      document.getElementById("j2-barre-pv").style.width = `${j2.pv}%`;
+      document.getElementById("j2-val-energie").innerText = j2.energie;
+      document.getElementById("j2-barre-energie").style.width = `${(j2.energie / 50) * 100}%`;
+      document.getElementById("j2-val-endurance").innerText = j2.endurance;
+      document.getElementById("j2-barre-endurance").style.width = `${(j2.endurance / 50) * 100}%`;
+
+      majBoutonsAttaques();
+    }
+
+    function verifierVictoire() {
+      if (j1.pv <= 0 || j2.pv <= 0) {
+        let gagnant = j1.pv > 0 ? j1.nom : j2.nom;
+        document.getElementById("victoire-nom-affiche").innerText = gagnant.toUpperCase();
+        document.getElementById("ecran-victoire").classList.remove("masque");
+        return true;
+      }
+      return false;
+    }
+
+    function ouvrirAttaques(num) {
+      if(num !== monNumeroJoueur) return;
+      document.getElementById(`j${num}-menu-main`).classList.add("masque");
+      document.getElementById(`j${num}-menu-atk`).classList.remove("masque");
+    }
+
+    function fermerAttaques(num) {
+      document.getElementById(`j${num}-menu-atk`).classList.add("masque");
+      document.getElementById(`j${num}-menu-main`).classList.remove("masque");
+    }
+
+    function ajouterJournal(texte, classeStyle) {
+      const journal = document.getElementById("journal");
+      const p = document.createElement("p");
+      p.innerText = texte;
+      p.className = classeStyle;
+      journal.appendChild(p);
+      journal.scrollTop = journal.scrollHeight;
+    }
+  </script>
+</body>
+</html>
